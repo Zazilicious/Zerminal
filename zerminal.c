@@ -31,7 +31,9 @@ void execute_command(char *input) {
         exit(0);
     } else if (strcmp(args[0], "cd") == 0) {
         // Change the directory
-        if (chdir(args[1]) == -1) {
+        if (args[1] == NULL) {
+            fprintf(stderr, "cd: missing argument\n");
+        } else if (chdir(args[1]) == -1) {
             perror("chdir failed");
         }
     } else {
@@ -44,11 +46,14 @@ void execute_command(char *input) {
             // In the child process, execute the command
             if (execvp(args[0], args) == -1) {
                 perror("Execution failed");
-                exit(1);
+                exit(1);  // Exit the child process if execution fails
             }
         } else {
             // In the parent process, wait for the child to finish
-            wait(NULL);
+            int status;
+            if (wait(&status) == -1) {
+                perror("Wait failed");
+            }
         }
     }
 }
@@ -63,8 +68,14 @@ int main() {
         
         // Read user input
         if (fgets(input, sizeof(input), stdin) == NULL) {
-            perror("Error reading input");
-            continue;
+            // Handle the error if input can't be read (e.g., EOF or input error)
+            if (feof(stdin)) {
+                printf("\nEOF encountered. Exiting...\n");
+                break;  // Exit on EOF (Ctrl+D)
+            } else {
+                perror("Error reading input");
+                continue;
+            }
         }
 
         // Execute the input command
